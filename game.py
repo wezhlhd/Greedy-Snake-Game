@@ -8,9 +8,10 @@ class Snake :
         self.screen = screen
         self.body = []   #长度
         self.fx = pygame.K_RIGHT   #方向
+        self.next_fx = None         # 新增：存储下一个方向
         self.init_body()
     
-    def init_body(self, length = 3) :
+    def init_body(self, length = 5) :
         left, top = (0, 0)
         for i in range(5) :
             if self.body :
@@ -42,6 +43,10 @@ class Snake :
         self.body.pop()
 
     def move(self) :
+         # 移动时应用暂存的方向
+        if self.next_fx is not None:
+            self.fx = self.next_fx
+            self.next_fx = None    # 清空暂存
         self.add_node()
         self.del_node()
     
@@ -51,7 +56,7 @@ class Snake :
         if fx in LR or UD :
             if (fx in LR and self.fx in LR) or (fx in UD and self.fx in UD) :
                 return
-            self.fx = fx
+            self.next_fx = fx
 
     def is_dead(self) :
         if self.body[0].left not in range(scr_wid) :
@@ -89,20 +94,27 @@ def main() :
     fd = Food()
     clock = pygame.time.Clock()
     dead = False    #蛇是否死亡的标识，False则没死
+    score = 0
 
     while True :
+        next_key = None  # 记录本帧第一个有效的方向键
         for i in pygame.event.get() :
             if i.type == pygame.QUIT :
                 pygame.quit()
             if i.type == pygame.KEYDOWN :
-                sk.change_fx(i.key)
-                if i.key == pygame.K_SPACE :
-                    sk = Snake(screen)   
-                    fd = Food()
-                    dead = False
+                if dead:  # 死亡状态下只处理空格键
+                    if i.key == pygame.K_SPACE :
+                        sk = Snake(screen)   
+                        fd = Food()
+                        dead = False
+                        score = 0
+                else:  # 未死亡时处理方向键
+                    if i.key in [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN] and next_key is None:
+                        sk.change_fx(i.key)  # 关键过滤
 
         screen.fill((255,255,255))
         sk.draw_snake()   #画蛇
+        show_text(screen, f'Score: {score}', 230, 15)   #显示得分
         if not dead:
             sk.move()     #蛇移动
 
@@ -112,16 +124,19 @@ def main() :
             dead = True
 
         if fd.flag :
-            fd.set()   #放食物
+            fd.set()
+            while fd.node in sk.body :
+                fd.set()   #放食物
 
         pygame.draw.rect(screen, (50, 255, 50), fd.node, 0)
 
         if sk.body[0] == fd.node :   #吃食物
             sk.add_node()
             fd.reset()
-
+            score += 1
+        
         pygame.display.update()
-        clock.tick(20)
+        clock.tick(15 + score)
 
 if __name__ == "__main__" :
     main()
